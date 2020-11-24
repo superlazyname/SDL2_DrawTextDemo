@@ -91,8 +91,25 @@ SDL_Texture* LetterTextures[FONT_IMAGE_COUNT];
 
 static_assert(ARRAY_SIZE(cExpectedLetterFileNames) == ARRAY_SIZE(LetterTextures));
 
+int TypeOn_CharacterIndex = 1;
+
+// note: since this demo runs at 60 FPS, this will be 4 characters typed on per second
+int TypeOn_AdvanceTics = 15;
+
+unsigned int FrameIndex = 0;
+
 // Functions
 //---------------------------------------------------------------------------------------------------
+
+int min(int a, int b)
+{
+    if(a < b)
+    {
+        return a;
+    }
+
+    return b;
+}
 
 IntVec2_t InquireTextureSize(SDL_Texture* texture)
 {
@@ -221,6 +238,51 @@ void DrawChar(IntVec2_t topLeftCorner, char ch)
     DrawTexture(charTexture, size, topLeftCorner);
 }
 
+void RenderString_TypeOn(IntVec2_t startPosition, const char* text, int textLength)
+{
+    if(textLength < 1)
+    {
+        return;
+    }
+
+
+
+    int stopIndex = min(textLength, TypeOn_CharacterIndex);
+
+    int stringCharIndex = 0;
+
+    int xPosition = startPosition.X;
+    for(stringCharIndex = 0; stringCharIndex < stopIndex; stringCharIndex++)
+    {
+        IntVec2_t position = {xPosition, startPosition.Y};
+        const char ch = text[stringCharIndex];
+
+        DrawChar(position, ch);
+
+        int charID = TextureIndexForChar(ch);
+
+        IntVec2_t size = LetterSizes[charID];
+
+        xPosition += size.X;
+        xPosition += cBetweenCharSpacing_px;
+        int breakpoint = 1;
+    }
+
+    int shouldAdvanceChar = (FrameIndex % TypeOn_AdvanceTics) == 0;
+
+    if(shouldAdvanceChar)
+    {
+        if(TypeOn_CharacterIndex < textLength)
+        {
+            TypeOn_CharacterIndex++;
+        }
+        else
+        {
+            TypeOn_CharacterIndex = 1;
+            printf("Type on reset to first character\n");
+        }
+    }
+}
 
 // note that only letters you have textures for will actually work,
 // don't try and render the string "%$^@#&~@abcd||__ unless you want to provide characters for that
@@ -310,11 +372,22 @@ void Render(void)
     SDL_SetRenderDrawColor(SDLGlobals.Renderer, 255, 200, 200, 255);
     SDL_RenderClear(SDLGlobals.Renderer);
 
-    IntVec2_t stringPosition = {32, 64};
 
-    const char* testString = "A0A0A0BE334C3D0C";
-    const int length = strlen(testString);
-    RenderString(stringPosition, testString, length);
+    {
+        IntVec2_t stringPosition = {32, 64};
+        const char* testString = "A0A0A0BE334C3D0C";
+        const int length = strlen(testString);
+        RenderString(stringPosition, testString, length);
+    }
+
+    {
+        IntVec2_t stringPosition = {32, 128};
+        const char* testString2 = "ABCDEFGHIJKL";
+        const int length2 = strlen(testString2);
+
+        RenderString_TypeOn(stringPosition, testString2, length2);
+    }
+
 
     SDL_RenderPresent(SDLGlobals.Renderer);
 
@@ -375,6 +448,8 @@ int main()
         Render();
         FrameDelay(targetTicks);
         targetTicks = SDL_GetTicks() + cFrameDuration_ms;
+
+        FrameIndex++;
     }
 
     // after quit: clean up resources
